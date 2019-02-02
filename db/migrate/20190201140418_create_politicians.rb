@@ -4,6 +4,7 @@ class CreatePoliticians < ActiveRecord::Migration[5.2]
       t.string :name
       t.integer :age
       t.integer :house_years
+      t.boolean :locked, default: false
 
       t.timestamps
     end

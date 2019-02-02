@@ -28,6 +28,7 @@ ActiveRecord::Schema.define(version: 2019_02_01_213517) do
     t.string "name"
     t.integer "age"
     t.integer "house_years"
+    t.boolean "locked", default: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end
