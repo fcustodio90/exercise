@@ -22,6 +22,14 @@ has_many :oldreplicas
     end
   end
 
+  def locked(politician)
+
+  end
+
+  def unlocked(poltician)
+
+  end
+
 
 
   def save_state
@@ -107,6 +115,7 @@ has_many :oldreplicas
       end
 
       replicas_array.each do |replica|
+        byebug
         subordinates_id << replica.subordinate
       end
 
