@@ -25,6 +25,7 @@ has_many :oldreplicas
 
 
   def save_state
+    byebug
     # fetch the superior ID from the object
     superior_id = self.superior.id
 
@@ -75,6 +76,8 @@ has_many :oldreplicas
       new_director = relationship.subordinate
      end
     end
+
+    byebug
 
     sub_ids.each do |id|
       new_director.active_relationships.create(subordinate_id: id)
