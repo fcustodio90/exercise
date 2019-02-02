@@ -61,49 +61,59 @@ has_many :oldreplicas
     # set the superior again.
     superior = Politician.find(superior_id)
 
-
     house_years_array = []
 
-    superior.active_relationships.each do |relationship|
-      house_years_array << relationship.subordinate.house_years
-    end
+    if superior.active_relationships.empty?
 
-    new_director = nil
+      sub_ids.each do |id|
+        house_years_array << Politician.find(id).house_years
+        superior.add_subordinate(Politician.find(id))
+      end
 
-    superior.active_relationships.each do |relationship|
-     if relationship.subordinate.house_years == house_years_array.sort!.last
-      new_director = relationship.subordinate
-     end
-    end
+    else
 
-    sub_ids.each do |id|
-      new_director.active_relationships.create(subordinate_id: id)
+      superior.active_relationships.each do |relationship|
+        house_years_array << relationship.subordinate.house_years
+      end
+
+      new_director = nil
+
+      superior.active_relationships.each do |relationship|
+
+       if relationship.subordinate.house_years == house_years_array.sort!.last
+        new_director = relationship.subordinate
+       end
+
+
+      end
+
+      sub_ids.each do |id|
+        new_director.active_relationships.create(subordinate_id: id)
+      end
     end
   end
 
-
-
-
-
-
-
   def recover_state
+
     if self.active_relationships.empty?
       id = self.id
+      superior_id = OldReplica.where(politician_id: id).first.superior
       replicas_array = []
       subordinates_id = []
+
 
       OldReplica.where(politician_id: id).each do |replica|
         replicas_array << replica
       end
 
       replicas_array.each do |replica|
-        subordinates_id << replica
+        subordinates_id << replica.subordinate
       end
 
       subordinates_id.each do |subordinate|
-        byebug
-        self.active_relationships.create(superior_id: id, subordinate_id: subordinate.subordinate)
+        Relationship.where(subordinate: subordinate).destroy_all
+        self.active_relationships.create(superior_id: id, subordinate_id: subordinate)
+        Politician.find(superior_id).add_subordinate(self)
       end
     end
   end
@@ -111,27 +121,3 @@ end
 
 
 
-    # Now that every possible relationship that this object once had
-    # is cleared its time to assign the new superiors for the subordinates
-    # that just lost their superior
-    # to do that we can go up in tier and check who remains, if there's one
-    # or more superiors remaining we compare them by house years and see who
-    # has it higher
-
-
-
-    #initialize an empty array that will be filled with subordinates objects
-    # subordinates_house_years = []
-
-    # superior.active_relationships.each do |relationship|
-    #   subordinates_house_years[1] << relationship.subordinate.id if relationship.subordinate != self
-    # end
-
-    # # this will be the next superior
-    # older_subordinate = subordinates_house_years.sort!.last
-
-
-    # byebug
-    # # set next superior
-
-    # puts 'hello hello hello'
