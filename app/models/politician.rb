@@ -30,7 +30,9 @@ has_many :oldreplicas
     update_attribute(:locked, false)
   end
 
-
+  def is_locked?
+    locked? == true
+  end
 
   def save_state
     if !self.locked?
@@ -89,17 +91,15 @@ has_many :oldreplicas
         new_director = nil
 
         superior.active_relationships.each do |relationship|
-
          if relationship.subordinate.house_years == house_years_array.sort!.last
           new_director = relationship.subordinate
          end
-
-
         end
 
         sub_ids.each do |id|
           new_director.active_relationships.create(subordinate_id: id)
         end
+
       end
     else
       puts "This guy is locked already lmao"
@@ -108,7 +108,8 @@ has_many :oldreplicas
 
   def recover_state
 
-    if self.active_relationships.empty?
+    if self.active_relationships.empty? && self.locked?
+      unlocked
       id = self.id
       superior_id = OldReplica.where(politician_id: id).first.superior
       replicas_array = []
@@ -120,8 +121,7 @@ has_many :oldreplicas
       end
 
       replicas_array.each do |replica|
-        byebug
-        subordinates_id << replica.subordinate
+        subordinates_id << replica.subordinate if !replica.politician.is_locked?
       end
 
       subordinates_id.each do |subordinate|
