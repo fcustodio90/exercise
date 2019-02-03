@@ -20,8 +20,6 @@ has_many :events
     if !Relationship.find_by(subordinate: self).nil?
       id = Relationship.find_by(subordinate: self).superior_id
       Politician.find(id)
-    else
-      Politician.find(self.id)
     end
   end
 
@@ -150,7 +148,6 @@ has_many :events
     # the hierarchy of this db only allows for one subordinate to have one
     # direct director so all instances of OldReplicas will share the same
     # superior ID
-    byebug
     superior_id = OldReplica.where(politician_id: id).first.superior
     # set the replicas array
     replicas_array = []
