@@ -10,10 +10,19 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2019_02_01_213517) do
+ActiveRecord::Schema.define(version: 2019_02_02_232846) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
+
+  create_table "events", force: :cascade do |t|
+    t.string "date"
+    t.boolean "locked", default: false
+    t.bigint "politician_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["politician_id"], name: "index_events_on_politician_id"
+  end
 
   create_table "old_replicas", force: :cascade do |t|
     t.integer "superior"
@@ -28,7 +37,6 @@ ActiveRecord::Schema.define(version: 2019_02_01_213517) do
     t.string "name"
     t.integer "age"
     t.integer "house_years"
-    t.boolean "locked", default: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end
@@ -52,5 +60,6 @@ ActiveRecord::Schema.define(version: 2019_02_01_213517) do
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
   end
 
+  add_foreign_key "events", "politicians"
   add_foreign_key "old_replicas", "politicians"
 end

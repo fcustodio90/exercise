@@ -5,6 +5,7 @@ has_many :active_relationships, class_name:  "Relationship",
                                 dependent:   :destroy
 
 has_many :oldreplicas
+has_many :events
 
 
   def add_subordinate(politician)
@@ -22,113 +23,127 @@ has_many :oldreplicas
     end
   end
 
-  def locked
-    update_attribute(:locked, true)
+  def event_locked
+    events.create(date: Time.now, locked: true)
   end
 
-  def unlocked
-    update_attribute(:locked, false)
+  def event_unlocked
+    events.create(date: Time.now, locked: false)
   end
 
   def is_locked?
-    locked? == true
+    events.last.locked == true
+  end
+
+  def events_empty?
+    events.empty?
   end
 
   def save_state
-    if !self.locked?
-      locked
-      # fetch the superior ID from the object
-      superior_id = self.superior.id
-
-      # initialize an empty array for subordinates id
-      sub_ids = []
-
-      # Start the iteration off the object active relationships
-      self.active_relationships.each do |subordinate|
-        # push into the array all subordinates ids
-        sub_ids << subordinate.subordinate_id
-      end
-
-      # start the iteration off the subordinates ids array
-      sub_ids.each do |subordinate|
-
-        # Initiate the OldReplica Construtor
-        # this will serve as a way to replicate the relationships before
-        # destroy them permanently from the Relationship model
-        OldReplica.create(superior: superior_id,
-                          subordinate: subordinate, politician_id: self.id)
-      end
-
-      # destroy all relationships associated with the object
-      self.active_relationships.destroy_all
-
-      # destroy the object id(aka subordinate_id) from the superior object
-      superior.active_relationships.where(subordinate: self.id).destroy_all
-
-      # set the superior again we can't acess it via superior anymore since
-      # we just destroyed the relation. This is necessary because it makes
-      # the rest of the code cleaner
-
-
-      # set the superior again.
-      superior = Politician.find(superior_id)
-
-      house_years_array = []
-
-      if superior.active_relationships.empty?
-
-        sub_ids.each do |id|
-          house_years_array << Politician.find(id).house_years
-          superior.add_subordinate(Politician.find(id))
-        end
-
-      else
-
-        superior.active_relationships.each do |relationship|
-          house_years_array << relationship.subordinate.house_years
-        end
-
-        new_director = nil
-
-        superior.active_relationships.each do |relationship|
-         if relationship.subordinate.house_years == house_years_array.sort!.last
-          new_director = relationship.subordinate
-         end
-        end
-
-        sub_ids.each do |id|
-          new_director.active_relationships.create(subordinate_id: id)
-        end
-
-      end
+    if self.events_empty?
+      event_locked
+      # lock for the first time
+      set_locked
     else
-      puts "This guy is locked already lmao"
+      # check if he is already locked!
+      locked if !self.is_locked?
     end
   end
 
   def recover_state
+    if self.active_relationships.empty? && self.is_locked?
+      event_unlocked
+      set_unlocked
+    end
+  end
 
-    if self.active_relationships.empty? && self.locked?
-      unlocked
-      id = self.id
-      superior_id = OldReplica.where(politician_id: id).first.superior
-      replicas_array = []
-      subordinates_id = []
+  private
+
+  def set_locked
+    # fetch the superior ID from the object
+    superior_id = self.superior.id
+
+    # initialize an empty array for subordinates id
+    sub_ids = []
+
+    # Start the iteration off the object active relationships
+    self.active_relationships.each do |subordinate|
+      # push into the array all subordinates ids
+      sub_ids << subordinate.subordinate_id
+    end
+
+    # start the iteration off the subordinates ids array
+    sub_ids.each do |subordinate|
+
+      # Initiate the OldReplica Construtor
+      # this will serve as a way to replicate the relationships before
+      # destroy them permanently from the Relationship model
+      OldReplica.create(superior: superior_id,
+                        subordinate: subordinate, politician_id: self.id)
+    end
+
+    # destroy all relationships associated with the object
+    self.active_relationships.destroy_all
+
+    # destroy the object id(aka subordinate_id) from the superior object
+    superior.active_relationships.where(subordinate: self.id).destroy_all
+
+    # set the superior again we can't acess it via superior anymore since
+    # we just destroyed the relation. This is necessary because it makes
+    # the rest of the code cleaner
 
 
-      OldReplica.where(politician_id: id).each do |replica|
-        replicas_array << replica
+    # set the superior again.
+    superior = Politician.find(superior_id)
+
+    house_years_array = []
+
+    if superior.active_relationships.empty?
+
+      sub_ids.each do |id|
+        house_years_array << Politician.find(id).house_years
+        superior.add_subordinate(Politician.find(id))
       end
 
-      replicas_array.each do |replica|
-        subordinates_id << replica.subordinate if !replica.politician.is_locked?
+    else
+
+      superior.active_relationships.each do |relationship|
+        house_years_array << relationship.subordinate.house_years
       end
 
-      subordinates_id.each do |subordinate|
-        Relationship.where(subordinate: subordinate).destroy_all
-        self.active_relationships.create(superior_id: id, subordinate_id: subordinate)
-        Politician.find(superior_id).add_subordinate(self)
+      new_director = nil
+
+      superior.active_relationships.each do |relationship|
+       if relationship.subordinate.house_years == house_years_array.sort!.last
+        new_director = relationship.subordinate
+       end
       end
+
+      sub_ids.each do |id|
+        new_director.active_relationships.create(subordinate_id: id)
+      end
+    end
+  end
+
+  def set_unlocked
+    id = self.id
+    superior_id = OldReplica.where(politician_id: id).first.superior
+    replicas_array = []
+    subordinates_id = []
+
+
+    OldReplica.where(politician_id: id).each do |replica|
+      replicas_array << replica
+    end
+
+    replicas_array.each do |replica|
+      subordinates_id << replica.subordinate if !replica.politician.is_locked?
+    end
+
+    subordinates_id.each do |subordinate|
+      Relationship.where(subordinate: subordinate).destroy_all
+      self.active_relationships.create(superior_id: id, subordinate_id: subordinate)
+      Politician.find(superior_id).add_subordinate(self)
     end
   end
 end
