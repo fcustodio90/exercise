@@ -35,7 +35,11 @@ has_many :events
 
   def is_locked?
     # the last event in the DB tells us if he is locked or not
-    events.last.locked == true
+    if events_empty?
+      false
+    else
+      events.last.locked == true
+    end
   end
 
   def events_empty?
@@ -63,10 +67,10 @@ has_many :events
     #                       AND
     # check if he is indeed locked
     if self.active_relationships.empty? && self.is_locked?
-      # create a locked event
-      event_unlocked
       # call the set_locked
       set_unlocked
+      # create a locked event
+      event_unlocked
     end
   end
 
@@ -143,6 +147,7 @@ has_many :events
   end
 
   def set_unlocked
+    byebug
     id = self.id
     # check who is his superior
     # the hierarchy of this db only allows for one subordinate to have one
@@ -158,25 +163,52 @@ has_many :events
     OldReplica.where(politician_id: id).each do |replica|
       # get all the relationships replicas and push them into the array
       replicas_array << replica
+      byebug
     end
 
     replicas_array.each do |replica|
       # get the subordinates IDS of the replica ONLY if they aren't locked
       # this is needed or yet we estabilish relationships with politicians that
       # are locked..
-      subordinates_id << replica.subordinate if !replica.politician.is_locked?
+      subordinates_id << replica.subordinate if !Politician.find(replica.subordinate).is_locked? || Politician.find(replica.subordinate).events_empty?
+      byebug
     end
 
+    # TODO
     subordinates_id.each do |subordinate|
-      # destroy all live relationships related to the specific subordinate
+
+      # FOR EVERY SUBORDINATE DESTROY THE ACTIVE RELATIONSHIPS
       Relationship.where(subordinate: subordinate).destroy_all
-      # set the active relationships as they were before being locked
+      # FOR EVERY SUBORDINATE SET THE SELF ACTIVE RELATIONSHIPS
       self.active_relationships.create(superior_id: id, subordinate_id: subordinate)
-      # set the previous superior before being locked
+      # CHECK IF THE PREVIOUS BOSS IS LOCKED OR NOT
+    end
+
+    byebug
+
+    if Politician.find(superior_id).is_locked?
+      # check who is the superior of the superior
+      sup_id = OldReplica.where(politician_id: superior_id).last.superior
+      # check his subordinates
+      subordinate_array = []
+      new_director = Relationship.where(superior: sup_id)[0].subordinate_id
+      Politician.find(new_director).add_subordinate(self)
+    else
       Politician.find(superior_id).add_subordinate(self)
     end
   end
 end
 
 
+    # subordinates_id.each do |subordinate|
+    #   # destroy all live relationships related to the specific subordinate
+    #   Relationship.where(subordinate: subordinate).destroy_all
+    #   # set the active relationships as they were before being locked
+    #   self.active_relationships.create(superior_id: id, subordinate_id: subordinate)
 
+
+
+
+    #   # set the previous superior before being locked
+    #   Politician.find(superior_id).add_subordinate(self)
+    # end
