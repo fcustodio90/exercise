@@ -141,7 +141,6 @@ has_many :events
   end
 
   def set_unlocked
-    byebug
     sub_ids = []
     superior_id = nil
 
